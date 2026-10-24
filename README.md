@@ -28,23 +28,70 @@ Power BI Desktop · DAX · Data modeling
 
 ## 🧮 DAX Measures
 
-The report has about 30 measures in the `_measures` table, grouped like this:
+All measures live in the `_measures` table.
 
-| Group | Measures |
-|---|---|
-| Applications | `Total_Loan_Applications`, `MTD_Loan_Applications`, `PMTD Loan Applications`, `Loan APP_MOM` |
-| Funded amount | `Total_Funded_Amount`, `MTD_Loan_Funded`, `PMTD loan Funded`, `Loan Funded_MOM%` |
-| Received amount | `Total Amount Received`, `MTD Amount Recived`, `PMTD Amount Recieved`, `Recieved Amount_MOM%` |
-| Interest rate | `Average Interest Rate`, `MTD Average Interest Rate`, `PMTD Average Interest Rate`, `MOM Interest Rate` |
-| DTI | `Average DTI`, `MTD Average DTI`, `PMTD DTI`, `MOM DTI` |
-| Good loans | `Good Loan Application`, `Good Loan App %`, `Good Loan Funded Amount`, `Good Loan Received Amount` |
-| Bad loans | `Bad Loan Application`, `Bad Loan %`, `Bad Loan Funded Amount`, `Bad Loan Received Amount` |
+**Core totals**
 
 ```dax
-Total Amount Received = SUM(financial_loan[total_payment])
+Total_Loan_Applications = DISTINCTCOUNT(financial_loan[id])
+Total_Funded_Amount     = SUM(financial_loan[loan_amount])
+Total Amount Received   = SUM(financial_loan[total_payment])
+Average Interest Rate   = AVERAGE(financial_loan[int_rate])
+Average DTI             = AVERAGE(financial_loan[dti])
 ```
 
-Open `powerbi/bank-loan-report.pbix` in Power BI Desktop to see every formula.
+**Month-to-date (MTD) and previous month-to-date (PMTD)**
+
+```dax
+MTD_Loan_Applications = CALCULATE([Total_Loan_Applications], DATESMTD(financial_loan[issue_date]))
+MTD_Loan_Funded       = CALCULATE([Total_Funded_Amount], DATESMTD(financial_loan[issue_date]))
+MTD Amount Recived    = CALCULATE([Total Amount Received], DATESMTD(financial_loan[issue_date]))
+MTD Average Interest Rate = CALCULATE([Average Interest Rate], DATESMTD(financial_loan[issue_date]))
+MTD Average DTI       = CALCULATE([Average DTI], DATESMTD(financial_loan[issue_date]))
+
+PMTD Loan Applications = CALCULATE([Total_Loan_Applications],
+    DATEADD(DATESMTD(Calender_Table2[Date].[Date]), -1, MONTH))
+PMTD loan Funded       = CALCULATE([Total_Funded_Amount],
+    DATEADD(DATESMTD(Calender_Table2[Date].[Date]), -1, MONTH))
+PMTD Amount Recieved   = CALCULATE([Total Amount Received],
+    DATEADD(DATESMTD(Calender_Table2[Date].[Date]), -1, MONTH))
+PMTD Average Interest Rate = CALCULATE([Average Interest Rate],
+    DATEADD(DATESMTD(Calender_Table2[Date].[Date]), -1, MONTH))
+PMTD DTI               = CALCULATE([Average DTI],
+    DATEADD(DATESMTD(Calender_Table2[Date].[Date]), -1, MONTH))
+```
+
+**Month-over-month (MOM) change**
+
+```dax
+Loan APP_MOM          = DIVIDE([MTD_Loan_Applications] - [PMTD Loan Applications], [PMTD Loan Applications])
+Loan Funded_MOM%      = DIVIDE([MTD_Loan_Funded] - [PMTD loan Funded], [PMTD loan Funded])
+Recieved Amount_MOM%  = DIVIDE([MTD Amount Recived] - [PMTD Amount Recieved], [PMTD Amount Recieved])
+MOM Interest Rate     = DIVIDE([MTD Average Interest Rate] - [PMTD Average Interest Rate], [PMTD Average Interest Rate])
+MOM DTI               = DIVIDE([MTD Average DTI] - [PMTD DTI], [PMTD DTI])
+```
+
+**Good loans (Fully Paid or Current) and bad loans (Charged Off)**
+
+```dax
+Good Loan Application = CALCULATE([Total_Loan_Applications],
+    financial_loan[loan_status] IN { "Fully Paid", "Current" })
+Good Loan App %       = DIVIDE([Good Loan Application], [Total_Loan_Applications], 0)
+Good Loan Funded Amount   = CALCULATE(SUM(financial_loan[loan_amount]),
+    financial_loan[loan_status] IN { "Fully Paid", "Current" })
+Good Loan Received Amount = CALCULATE(SUM(financial_loan[total_payment]),
+    financial_loan[loan_status] IN { "Fully Paid", "Current" })
+
+Bad Loan Application = CALCULATE([Total_Loan_Applications],
+    financial_loan[loan_status] IN { "Charged Off" })
+Bad Loan %           = DIVIDE([Bad Loan Application], [Total_Loan_Applications], 0)
+Bad Loan Funded Amount   = CALCULATE(SUM(financial_loan[loan_amount]),
+    financial_loan[loan_status] IN { "Charged Off" })
+Bad Loan Received Amount = CALCULATE(SUM(financial_loan[total_payment]),
+    financial_loan[loan_status] IN { "Charged Off" })
+```
+
+**Also in the model** (not shown on the report pages): `SPL` (funded amount for the same period last year, using `SAMEPERIODLASTYEAR`) and `loansPM` (funded amount shifted back one month with `DATEADD`).
 
 ## 📑 Report Pages
 
@@ -77,6 +124,7 @@ The Summary page has slicers for state and grade.
 - Total amount received ($473.1M) is higher than the funded amount, so it includes interest. It is not the same as principal repaid.
 - The "Current" loans (1,098) are counted as good loans although they are not finished yet.
 - The report shows no year on the monthly chart. The loan table has issue dates in 2021, so the monthly trend most likely covers that year.
+- The MTD measures filter on `financial_loan[issue_date]`, while the PMTD measures use a second date table (`Calender_Table2`). Pointing both at the same date table would make the MOM figures easier to trust and maintain.
 - Some card and measure labels contain typos ("Averatge", "Recieved"), and the slicer titles read "State" and "Grade". Fix them before sharing the report widely.
 - Currency is shown as $. Confirm that the data is a sample or public dataset before publishing it.
 
