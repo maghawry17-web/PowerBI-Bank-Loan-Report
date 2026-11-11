@@ -125,7 +125,7 @@ The Summary page has slicers for state and grade.
 - The "Current" loans (1,098) are counted as good loans although they are not finished yet.
 - The report shows no year on the monthly chart. The loan table has issue dates in 2021, so the monthly trend most likely covers that year.
 - The MTD measures filter on `financial_loan[issue_date]`, while the PMTD measures use a second date table (`Calender_Table2`). Pointing both at the same date table would make the MOM figures easier to trust and maintain.
-- Some card and measure labels contain typos ("Averatge", "Recieved"), and the slicer titles read "State" and "Grade". Fix them before sharing the report widely.
+- Some measure names still contain typos ("Recieved", "Recived") and the slicer titles read "State" and "Grade". Fix them before sharing the report widely.
 - Currency is shown as $. Confirm that the data is a sample or public dataset before publishing it.
 
 ## ✅ Recommendations
